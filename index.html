@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 简易客户端</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; }
+        h2 { color: #333; }
+        
+        /* 布局样式 */
+        .control-panel { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .input-group { margin-bottom: 10px; }
+        input[type="text"] { width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 8px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        
+        /* 按钮颜色 */
+        #btnConnect { background-color: #28a745; }
+        #btnDisconnect { background-color: #dc3545; }
+        #btnSend { background-color: #007bff; }
+        
+        /* 日志区域 */
+        #log-container { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #fff; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 12px; }
+        .log-item { margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+        .log-time { color: #888; margin-right: 5px; }
+        .log-sys { color: #d63384; font-weight: bold; } /* 系统消息颜色 */
+        .log-msg { color: #333; } /* 接收消息颜色 */
+        .log-sent { color: #0d6efd; } /* 发送消息颜色 */
+    </style>
+</head>
+<body>
+
+    <h2>🔌 WebSocket 客户端测试工具</h2>
+
+    <!-- 控制区域 -->
+    <div class="control-panel">
+        <div class="input-group">
+            <input type="text" id="wsUrl" value="ws://172.16.7.57:18080" placeholder="输入 WebSocket 地址">
+            <button id="btnConnect" onclick="connectWs()">连接</button>
+            <button id="btnDisconnect" onclick="disconnectWs()" disabled>断开</button>
+        </div>
+        <div class="input-group">
+            <input type="text" id="msgInput" placeholder="输入要发送的消息" disabled>
+            <button id="btnSend" onclick="sendMsg()" disabled>发送</button>
+        </div>
+    </div>
+
+    <!-- 日志显示区域 -->
+    <div id="log-container"></div>
+
+    <script>
+        let ws = null;
+        const logContainer = document.getElementById('log-container');
+        const btnConnect = document.getElementById('btnConnect');
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        const msgInput = document.getElementById('msgInput');
+        const btnSend = document.getElementById('btnSend');
+
+        // 添加日志函数
+        function addLog(message, type = 'msg') {
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            
+            const time = new Date().toLocaleTimeString();
+            let content = `<span class="log-time">[${time}]</span> `;
+            
+            if (type === 'sys') {
+                content += `<span class="log-sys">${message}</span>`;
+            } else if (type === 'sent') {
+                content += `<span class="log-sent">发送: ${message}</span>`;
+            } else {
+                content += `<span class="log-msg">接收: ${message}</span>`;
+            }
+            
+            div.innerHTML = content;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight; // 自动滚动到底部
+        }
+
+        // 连接 WebSocket
+        function connectWs() {
+            const url = document.getElementById('wsUrl').value;
+            if (!url) return alert("请输入地址");
+
+            addLog(`正在连接 ${url}...`, 'sys');
+
+            try {
+                ws = new WebSocket(url);
+
+                // 连接成功
+                ws.onopen = function() {
+                    addLog('✅ 连接成功！', 'sys');
+                    // 启用按钮和输入框
+                    btnConnect.disabled = true;
+                    btnDisconnect.disabled = false;
+                    msgInput.disabled = false;
+                    btnSend.disabled = false;
+                };
+
+                // 接收消息
+                ws.onmessage = function(event) {
+                    addLog(event.data);
+                };
+
+                // 连接关闭
+                ws.onclose = function() {
+                    addLog('🔌 连接已关闭', 'sys');
+                    resetUI();
+                };
+
+                // 发生错误
+                ws.onerror = function(error) {
+                    addLog('❌ 发生错误 (检查控制台)', 'sys');
+                    console.error("WebSocket Error:", error);
+                };
+
+            } catch (e) {
+                addLog('❌ 初始化失败: ' + e.message, 'sys');
+            }
+        }
+
+        // 断开连接
+        function disconnectWs() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        // 发送消息
+        function sendMsg() {
+            const msg = msgInput.value;
+            if (msg && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(msg);
+                addLog(msg, 'sent');
+                msgInput.value = ''; // 清空输入框
+            }
+        }
+
+        // 重置界面状态
+        function resetUI() {
+            btnConnect.disabled = false;
+            btnDisconnect.disabled = true;
+            msgInput.disabled = true;
+            btnSend.disabled = true;
+        }
+    </script>
+</body>
+</html>
